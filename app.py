@@ -25,13 +25,13 @@ load_dotenv()
 
 head_v3()
 
-option = st.selectbox(
-    "App Version",
-    ("v3", "v2", "v1"),
-    help="versioning documentation with feature lists coming up soon",
-)
+# option = st.selectbox(
+#     "App Version",
+#     ("v3", "v2", "v1"),
+#     help="versioning documentation with feature lists coming up soon",
+# )
 
-app: App = st.session_state.get("app")
+#app: App = st.session_state.get("app")
 
 if not app:
     app = App()
