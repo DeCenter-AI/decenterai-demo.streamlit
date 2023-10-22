@@ -30,7 +30,6 @@ head_v3()
 #     ("v3", "v2", "v1"),
 #     help="versioning documentation with feature lists coming up soon",
 # )
-
 #app: App = st.session_state.get("app")
 
 if not app:
