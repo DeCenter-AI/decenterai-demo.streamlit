@@ -47,7 +47,6 @@ def head_v3():
         },
         initial_sidebar_state="collapsed",
     ) 
-    st.sidebar.header("Demo App V3")
     st.markdown(public.button_styles_css, unsafe_allow_html=True)
 
     st.sidebar.write(
@@ -71,6 +70,7 @@ def head_v3():
     col2.image(public.logo, width=400)
 
     #st.sidebar.success("Load complete")
+    st.sidebar.title("Demo App V3")
     st.sidebar.text("Download the Samples here!!")
     def create_download_link(file_path, file_name):
         with open(file_path, 'rb') as file:
