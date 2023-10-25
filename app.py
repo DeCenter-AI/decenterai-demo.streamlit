@@ -4,9 +4,9 @@ import subprocess
 import sys
 import zipfile
 from typing import List
-
+import base64
 import streamlit as st
-
+import io
 from config.constants import *
 from config.log import setup_log
 from enums.app_v3 import App
