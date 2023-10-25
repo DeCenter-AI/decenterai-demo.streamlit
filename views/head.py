@@ -46,7 +46,7 @@ def head_v3():
             
         },
         initial_sidebar_state="collapsed",
-    ) 
+    )
     st.markdown(public.button_styles_css, unsafe_allow_html=True)
 
     st.sidebar.write(
@@ -70,6 +70,7 @@ def head_v3():
     col2.image(public.logo, width=400)
 
     #st.sidebar.success("Load complete")
+
     st.sidebar.title("Demo App V3")
     st.sidebar.text("Download the Samples here!!")
     def create_download_link(file_path, file_name):
@@ -89,7 +90,6 @@ def head_v3():
     for project, file_path in file_options.items():
         if os.path.exists(file_path):
             st.sidebar.markdown(create_download_link(file_path, project), unsafe_allow_html=True)
-
 
 
 def head_v4():
