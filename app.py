@@ -211,7 +211,7 @@ if st.button("Train", key="train"):
         st.download_button(
             label="Download Model",
             data=f1,
-            file_name=f"{app.model_name}.zip",
+            file_name=f"{model_name}.zip",
             key="download_model",
         )
         app.recycle_temp_dir()
