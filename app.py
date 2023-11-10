@@ -2,11 +2,12 @@ import logging
 import shutil
 import subprocess
 import sys
+import time
 import zipfile
 from typing import List
-import base64
+
 import streamlit as st
-import io
+
 from config.constants import *
 from config.log import setup_log
 from enums.app_v3 import App
@@ -14,6 +15,7 @@ from utils.exec_commands import get_notebook_cmd
 from utils.helper_find import (
     find_requirements_txt_files,
     find_driver_scripts,
+    find_demos,
 )
 from utils.install_deps import install_dependencies
 from views.head import head_v3
@@ -24,6 +26,12 @@ load_dotenv()
 
 head_v3()
 
+# option = st.selectbox(
+#     "App Version",
+#     ("v3", "v2", "v1"),
+#     help="versioning documentation with feature lists coming up soon",
+# )
+
 app: App = st.session_state.get("app")
 
 if not app:
@@ -31,6 +39,21 @@ if not app:
     logging.info("creating new app instance")
     st.session_state.app = app
 
+app.reset_on_new_model_train()
+
+# if option != app.version:  # don't redirect if in the same page
+#     st.markdown(
+#         f'<meta http-equiv="refresh" content="0;URL=/{option}">',
+#         unsafe_allow_html=True,
+#     )
+
+# app.selected_demo = st.selectbox(
+#     "Demo",
+#     find_demos(),
+#     help="enabled when no input archive is uploaded",
+#     disabled=not app.demo,
+#     key="selected_demo",
+# )
 model_name = st.text_input(
         "Model Name",
         max_chars=50,
@@ -38,7 +61,6 @@ model_name = st.text_input(
         key="model_name",
         value=app.model_name,
     )
-
 input_archive = st.file_uploader(
     "Upload Training Workspace Archive with Datasets",
     type=["zip"],
@@ -47,19 +69,19 @@ input_archive = st.file_uploader(
 )
 
 demo = input_archive is None
+
 if demo:
-        
     st.selectbox(
-    "Training Script:",
-    find_driver_scripts(app.work_dir),
-)
+        "Training Script:",
+        find_driver_scripts(app.work_dir),
+    )
     st.button("Train", key="train")
 
 if demo != app.demo:
     app.demo = demo
     logging.info(f"demo mode set {app.demo}->{demo}")
     st.experimental_rerun()
- 
+
 if app.model_name not in app.work_dir:
     logging.info("creating new app.work_dir")
     app.recycle_temp_dir()
@@ -81,13 +103,13 @@ else:
     extracted_files = os.listdir(app.work_dir)
     logging.info(f"extracted: {extracted_files}")
     logging.info(f"work_dir: {app.work_dir}")
-
+    app.training_script = st.selectbox(
+        "Training Script:",
+        find_driver_scripts(app.work_dir),
+    )
     app.create_venv()
 
-app.training_script = st.selectbox(
-    "Training Script:",
-    find_driver_scripts(app.work_dir),
-)
+
 
 if not app.training_script:
     logging.critical("starter_script:not found")
@@ -100,24 +122,24 @@ training_cmd: List[str]
 match execution_environment:
     case ".py":
         app.environment = PYTHON
-        # requirements = st.selectbox(
-        #     "Select dependencies to install",
-        #     find_requirements_txt_files(
-        #         app.work_dir,
-        #     ),
-        # )
+        requirements = st.selectbox(
+            "Select dependencies to install",
+            find_requirements_txt_files(
+                app.work_dir,
+            ),
+        )
 
-        # if requirements:
-        #     with st.spinner("Installing dependencies in progress"):
-        #         app.requirements_path = os.path.join(
-        #             app.work_dir,
-        #             requirements,
-        #         )
-        #         install_dependencies(
-        #             app.python_repl,
-        #             app.requirements_path,
-        #             cwd=app.work_dir,
-        #         )
+        if requirements:
+            with st.spinner("Installing dependencies in progress"):
+                app.requirements_path = os.path.join(
+                    app.work_dir,
+                    requirements,
+                )
+                install_dependencies(
+                    app.python_repl,
+                    app.requirements_path,
+                    cwd=app.work_dir,
+                )
         training_cmd = [app.python_repl, app.training_script]
 
     case ".ipynb":
@@ -142,6 +164,15 @@ if st.button("Train", key="train"):
     st.snow()
 
     with st.spinner("Training in progress"):
+        while not app.installed_deps:
+            logging.debug("waiting for deps installation to complete")
+            time.sleep(2)
+        # if not app.installed_deps: //FIXME:
+        #     try:
+        #         app.installation_queue.get(block=True, timeout=1*60)
+        #     except Exception as e:
+        #         logging.error(f"error {e}")
+
         result = subprocess.run(
             training_cmd,
             cwd=app.work_dir,
@@ -170,6 +201,7 @@ if st.button("Train", key="train"):
             if os.path.exists(
                 os.path.join(app.work_dir, f"{app.training_script}.html"),
             ):
+                app.exit_success = True
                 st.info(f"notebook: output generated at {out}")
                 logging.info(f"notebook: output generated at {out}")
             else:
@@ -197,7 +229,7 @@ if st.button("Train", key="train"):
         st.download_button(
             label="Download Model",
             data=f1,
-            file_name=f"{model_name}.zip",
+            file_name=f"decenter-model-{app.model_name}.zip",
             key="download_model",
         )
         app.recycle_temp_dir()
