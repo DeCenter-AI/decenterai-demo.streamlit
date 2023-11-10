@@ -26,11 +26,6 @@ load_dotenv()
 
 head_v3()
 
-# option = st.selectbox(
-#     "App Version",
-#     ("v3", "v2", "v1"),
-#     help="versioning documentation with feature lists coming up soon",
-# )
 
 app: App = st.session_state.get("app")
 
@@ -41,19 +36,6 @@ if not app:
 
 app.reset_on_new_model_train()
 
-# if option != app.version:  # don't redirect if in the same page
-#     st.markdown(
-#         f'<meta http-equiv="refresh" content="0;URL=/{option}">',
-#         unsafe_allow_html=True,
-#     )
-
-# app.selected_demo = st.selectbox(
-#     "Demo",
-#     find_demos(),
-#     help="enabled when no input archive is uploaded",
-#     disabled=not app.demo,
-#     key="selected_demo",
-# )
 model_name = st.text_input(
         "Model Name",
         max_chars=50,
@@ -229,7 +211,7 @@ if st.button("Train", key="train"):
         st.download_button(
             label="Download Model",
             data=f1,
-            file_name=f"decenter-model-{app.model_name}.zip",
+            file_name=f"{app.model_name}.zip",
             key="download_model",
         )
         app.recycle_temp_dir()
