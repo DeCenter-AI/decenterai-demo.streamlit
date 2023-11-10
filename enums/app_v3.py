@@ -1,10 +1,12 @@
 import logging
 import os
 import platform
+import subprocess
 import sys
 import tempfile
 import venv
 from dataclasses import dataclass
+from queue import Queue
 from typing import Union
 
 import streamlit as st
@@ -19,7 +21,7 @@ from config.constants import (
     PRODUCTION,
 )
 from utils.archive import archive_directory
-import subprocess
+from utils.thread import keepAlive
 
 
 @dataclass_json(letter_case=LetterCase.CAMEL)
@@ -33,15 +35,25 @@ class App:
     environment: EXECUTION_ENVIRONMENT = JUPYTER_NOTEBOOK
     training_script: str = None
     requirements_path: str = None
+
     _work_dir: str = None
+
     temp_dir: tempfile.TemporaryDirectory = None
     models_archive_dir = tempfile.TemporaryDirectory(
         prefix="decenter-ai-",
         suffix="-models-zip-dir",
     ).name
 
-    python_repl: str = sys.executable
+    _python_repl: str = sys.executable
     venv_dir: str = None
+    installed_deps: bool = (
+        True  # cuz, by default in demo mode, no deps to be installed
+    )
+    installation_queue: Queue = (
+        Queue()
+    )  # TODO: make it finite, fix the bugs and queue full issue
+    # TODO: dinesh use asyncio.quesues
+
     exit_success: bool = True
 
     _input_archive: UploadedFile | str = None
@@ -54,6 +66,15 @@ class App:
     @property
     def input_archive(self):
         return self._input_archive
+
+    @property
+    def python_repl(self):
+        return self._python_repl
+
+    @python_repl.setter
+    def python_repl(self, python_repl):
+        self._python_repl = python_repl
+        self.installed_deps = python_repl == sys.executable
 
     @input_archive.setter
     def input_archive(self, input_archive: UploadedFile | str):
@@ -89,7 +110,7 @@ class App:
     @model_name.setter
     def model_name(self, model_name: str):
         if not model_name:
-        # st.toast("model name not changed")
+            st.toast("model name not changed")
             logging.debug("model_name: invalid")
             return
         self._prev_model_name = self._model_name
@@ -123,16 +144,24 @@ class App:
         self.python_repl = python_repl
 
         if MODE == PRODUCTION or True:
-            logging.info(
-                "installing jupyter",
-            )  # FIXME: why streamlit app needs manual installation of jupyter debug..
-            result = subprocess.run(
-                [python_repl, "-m", "pip", "install", "jupyter"],
-                cwd=self.work_dir,
-                capture_output=True,
-            )
-            logging.info(result.stdout)
-            logging.error(result.stderr)
+            self.installed_deps = False
+            self._install_deps()
+
+    @keepAlive
+    def _install_deps(self):
+        logging.info(
+            "installing jupyter",
+        )
+        result = subprocess.run(
+            [self.python_repl, "-m", "pip", "install", "jupyter"],
+            cwd=self.work_dir,
+            capture_output=True,
+        )
+        logging.info(result.stdout)
+        logging.error(result.stderr)
+
+        self.installed_deps = True
+        self.installation_queue.put(True, block=False)
 
     def export_working_dir(self, archive_name=None) -> Union[os.PathLike, str]:
         archive_name = archive_name or self.model_name
@@ -177,3 +206,9 @@ class App:
     @property
     def selected_demo_path(self):
         return os.path.join(DEMO_DIR, self.selected_demo)
+
+    def reset_on_new_model_train(self):
+        logging.info("app: cache reset")
+        logging.warning("todo: implementation")
+        # TODO: find the variables that needs to be changed to default on new model run
+        pass
